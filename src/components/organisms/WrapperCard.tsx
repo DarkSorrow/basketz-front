@@ -10,7 +10,6 @@ import Select from '@material-ui/core/Select';
 import { blueGrey, red } from '@material-ui/core/colors';
 import Typography from '@material-ui/core/Typography';
 import Chip from '@material-ui/core/Chip';
-import DoneIcon from '@material-ui/icons/Done';
 
 import Grid from '@material-ui/core/Grid';
 import Card from '@material-ui/core/Card';

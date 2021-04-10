@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect } from 'react';
-import { makeStyles, useTheme } from '@material-ui/core/styles';
+import { makeStyles } from '@material-ui/core/styles';
 import Box from '@material-ui/core/Box';
 import Collapse from '@material-ui/core/Collapse';
 import IconButton from '@material-ui/core/IconButton';
@@ -52,6 +52,19 @@ interface IProps {
 function Row({ row }: IProps) {
   const [open, setOpen] = useState(false);
   const classes = useRowStyles();
+  const [isPending, setIsPending] = useState<boolean>(false);
+  const { contracts, checkTx } = useWallet();
+
+  const unwrapToken = async () => {
+    setIsPending(true);
+    try {
+      const tx = await contracts.Wrapper?.cabi.unwrapper(row.tokenID, { gasLimit: 6000000 });
+      checkTx(tx);
+    } catch (err) {
+      console.log(err);
+    }
+    setIsPending(false);
+  }
 
   // useEffect when open is true setTimer will get information about the price from outside feed
   return (
@@ -74,7 +87,7 @@ function Row({ row }: IProps) {
           <PieChart data={row.composition} />
         </TableCell>
         <TableCell>
-          <LoadingButton variant="contained" color="secondary">
+          <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={unwrapToken}>
             Unwrap
           </LoadingButton>
         </TableCell>
@@ -161,33 +174,36 @@ export default function WrapperOwnedList() {
       const symbol = 'BWRAP';
       const wrapTokens: WrapTokens[] = [];
       const ercWrapper = contracts.Wrapper?.cabi;
-      console.log(tokenOwned);
       if (ercWrapper) {
         for (const wrapped of Array.from(tokenOwned)) {
-          const price = await ercWrapper.basketPrice(account, wrapped);
-          const { tokens, amounts } = await ercWrapper.wrappedBalance(wrapped);
-          const composition: UnderlayingToken[] = [];
-          for (let i = 0; i < tokens.length; i++) {
-            const uSymbol = contractNames[provider?.network.chainId || 0][tokens[i]] || '';
-            composition.push({
-              address: tokens[i],
-              symbol: uSymbol,
-              price: ethers.BigNumber.from(0),
-              amount: amounts[i],
-              angle: parseInt(amounts[i].toString(), 10),
-              label: uSymbol,
+          try {
+            const price = await ercWrapper.basketPrice(account, wrapped);
+            const { tokens, amounts } = await ercWrapper.wrappedBalance(wrapped);
+            const composition: UnderlayingToken[] = [];
+            for (let i = 0; i < tokens.length; i++) {
+              const uSymbol = contractNames[provider?.network.chainId || 0][tokens[i]] || '';
+              composition.push({
+                address: tokens[i],
+                symbol: uSymbol,
+                price: ethers.BigNumber.from(0),
+                amount: amounts[i],
+                angle: parseInt(amounts[i].toString(), 10),
+                label: uSymbol,
+              });
+            }
+            wrapTokens.push({
+              symbol,
+              tokenID: wrapped,
+              displayName: `${symbol} (${wrapped.toString()})`, // symbol (tokenID)
+              basketPrice: price,
+              composition: composition,
             });
+          } catch (err) {
+            console.log('error in asking basket prices');
+            console.log(err);
           }
-          wrapTokens.push({
-            symbol,
-            tokenID: wrapped,
-            displayName: `${symbol} (${wrapped.toString()})`, // symbol (tokenID)
-            basketPrice: price,
-            composition: composition,
-          });
         }
       }
-      console.log(wrapTokens);
       setWrapperOwned(wrapTokens);
     };
     initTokens();

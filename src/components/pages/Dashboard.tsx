@@ -6,7 +6,6 @@ import Paper from '@material-ui/core/Paper';
 import Grid from '@material-ui/core/Grid';
 import * as CSS from 'csstype';
 import { ethers } from 'ethers';
-import Button from '@material-ui/core/Button';
 
 import { useWallet } from '../../providers';
 import { DepositCard, WrapperCard, WrapperOwnedList } from '../organisms';
@@ -29,7 +28,7 @@ const NotAvailable = () => {
 }
 
 export default function DashboardPage() {
-  const { provider, account, contracts, checkTx } = useWallet();
+  const { provider, account, contracts } = useWallet();
   const [etherBalance, setEtherBalance] = useState<string>();
   useEffect(() => {
     const initState = async () => {
