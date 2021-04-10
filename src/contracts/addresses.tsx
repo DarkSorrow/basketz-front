@@ -22,3 +22,23 @@ export const tokensList: Addresses = {
     { name: 'MockB', address: '0x9C35eb2Ddf340AD3ac051455ea26D44e1ed87DC9', abi: 'mockTokenB' },
   ],
 }
+
+interface ContractName {
+  [address: string]: string;
+}
+
+export interface ContractNames {
+  [chainID: number]: ContractName;
+}
+
+export const contractNames: ContractNames = {
+  4: {//Rinkeby
+    '0x5582E24970e186B28c51F6D0c1F2Bd8a4B281962': 'ercWrapper',
+    '0x220b45711340265481ACfF4302b5F0e17011503f': 'mockTokenA',
+  },
+  42: {//Kovan
+    '0xac92c3eCEF51276f8F9154e94A55103D2341dE0A': 'Basketz',
+    '0x468C26d86c614cC3d8Eb8cFd89D5607f79D46289': 'MockA',
+    '0x9C35eb2Ddf340AD3ac051455ea26D44e1ed87DC9': 'MockB',
+  },
+}

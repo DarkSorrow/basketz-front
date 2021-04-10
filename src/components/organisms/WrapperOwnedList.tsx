@@ -1,5 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect } from 'react';
-import { makeStyles } from '@material-ui/core/styles';
+import { makeStyles, useTheme } from '@material-ui/core/styles';
 import Box from '@material-ui/core/Box';
 import Collapse from '@material-ui/core/Collapse';
 import IconButton from '@material-ui/core/IconButton';
@@ -15,7 +16,8 @@ import LoadingButton from '@material-ui/lab/LoadingButton';
 import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@material-ui/icons/KeyboardArrowUp';
 import { ethers } from 'ethers';
-
+import { PieChart } from '../molecules';
+import { contractNames } from '../../contracts'
 import { useWallet } from '../../providers';
 
 const useRowStyles = makeStyles({
@@ -26,41 +28,32 @@ const useRowStyles = makeStyles({
   },
 });
 
-function createData(
-  name: string,
-  calories: number,
-  fat: number,
-  carbs: number,
-  price: number,
-) {
-  return {
-    name,
-    calories,
-    fat,
-    carbs,
-    price,
-    history: [
-      {
-        date: '2020-01-05',
-        customerId: '11091700',
-        amount: 3,
-      },
-      {
-        date: '2020-01-02',
-        customerId: 'Anonymous',
-        amount: 1,
-      },
-    ],
-  };
+interface UnderlayingToken {
+  address: string
+  symbol: string
+  price: ethers.BigNumber
+  amount: ethers.BigNumber
+  angle: number
+  label: string
 }
 
-function Row(props: { row: ReturnType<typeof createData> }) {
-  const { row } = props;
+interface WrapTokens {
+  symbol: string,
+  tokenID: ethers.BigNumber,
+  displayName: string, // symbol (tokenID)
+  basketPrice: ethers.BigNumber,
+  composition: UnderlayingToken[],
+}
+
+interface IProps {
+  row: WrapTokens
+};
+
+function Row({ row }: IProps) {
   const [open, setOpen] = useState(false);
   const classes = useRowStyles();
 
   // useEffect when open is true setTimer will get information about the price from outside feed
-
   return (
     <>
       <TableRow className={classes.root}>
@@ -74,11 +67,13 @@ function Row(props: { row: ReturnType<typeof createData> }) {
           </IconButton>
         </TableCell>
         <TableCell component="th" scope="row">
-          {row.name}
+          {row.displayName}
         </TableCell>
-        <TableCell align="right">{row.calories}</TableCell>
-        <TableCell align="right">{row.fat}</TableCell>
-        <TableCell align="right">
+        <TableCell>{ethers.utils.formatEther(row.basketPrice)}</TableCell>
+        <TableCell padding="none">
+          <PieChart data={row.composition} />
+        </TableCell>
+        <TableCell>
           <LoadingButton variant="contained" color="secondary">
             Unwrap
           </LoadingButton>
@@ -89,27 +84,29 @@ function Row(props: { row: ReturnType<typeof createData> }) {
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box sx={{ margin: 1 }}>
               <Typography variant="h6" gutterBottom component="div">
-                History
+                Composition
               </Typography>
               <Table size="small" aria-label="purchases">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Customer</TableCell>
-                    <TableCell align="right">Amount</TableCell>
-                    <TableCell align="right">Total price ($)</TableCell>
+                    <TableCell>Contract</TableCell>
+                    <TableCell align="center">Symbol</TableCell>
+                    <TableCell align="center">Amount</TableCell>
+                    <TableCell align="center">Price</TableCell>
+                    <TableCell align="center">- / + Value</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {row.history.map((historyRow) => (
-                    <TableRow key={historyRow.date}>
+                  {row.composition.map((uToken) => (
+                    <TableRow key={`${uToken.address}-${row.tokenID.toString()}`}>
                       <TableCell component="th" scope="row">
-                        {historyRow.date}
+                        {uToken.address}
                       </TableCell>
-                      <TableCell>{historyRow.customerId}</TableCell>
-                      <TableCell align="right">{historyRow.amount}</TableCell>
-                      <TableCell align="right">
-                        {Math.round(historyRow.amount * row.price * 100) / 100}
+                      <TableCell align="center">{uToken.symbol}</TableCell>
+                      <TableCell align="center">{ethers.utils.formatEther(uToken.amount)}</TableCell>
+                      <TableCell align="center">{ethers.utils.formatEther(uToken.price)}</TableCell>
+                      <TableCell align="center">
+                        N/A
                       </TableCell>
                     </TableRow>
                   ))}
@@ -123,20 +120,75 @@ function Row(props: { row: ReturnType<typeof createData> }) {
   );
 }
 
-const rows = [
-  createData('Frozen yoghurt', 159, 6.0, 24, 3.99),
-  createData('Ice cream sandwich', 237, 9.0, 4.3, 4.99),
-  createData('Eclair', 262, 16.0, 24, 3.79),
-  createData('Cupcake', 305, 3.7, 67, 2.5),
-  createData('Gingerbread', 356, 16.0, 3.9, 1.5),
-];
-
-
 export default function WrapperOwnedList() {
   const { provider, account, contracts } = useWallet();
+  const [ wrapperOwned, setWrapperOwned ] = useState<WrapTokens[]>([]);
+
+  const listOwnedToken = async () => {
+    const ercWrapper = contracts.Wrapper?.cabi;
+    const tokensId = new Set<ethers.BigNumber>();
+    if (ercWrapper) {
+      let tLogs = await ercWrapper.queryFilter(
+        ercWrapper.filters.Transfer(account, null),
+      );
+      tLogs = tLogs.concat(await ercWrapper.queryFilter(
+        ercWrapper.filters.Transfer(null, account),
+      ));
+      const logs = tLogs.sort((a, b) =>
+          a.blockNumber - b.blockNumber ||
+          a.transactionIndex - b.transactionIndex,
+      );
+      const checkAccount = account.toLowerCase();
+      
+      for (const log of logs) {
+        if (log.args) {
+          const { from, to, tokenId } = log.args;
+          if (to.toLowerCase() === checkAccount) {
+            tokensId.add(tokenId);
+          } else if (from.toLowerCase() === checkAccount) {
+            tokensId.delete(tokenId);
+          }
+        }
+      }
+    }
+    return tokensId;
+  }
+
   useEffect(() => {
     const initTokens = async () => {
-
+      //function wrappedBalance(uint256 _wrapId)
+      const tokenOwned: Set<ethers.BigNumber> = await listOwnedToken();
+      const symbol = 'BWRAP';
+      const wrapTokens: WrapTokens[] = [];
+      const ercWrapper = contracts.Wrapper?.cabi;
+      console.log(tokenOwned);
+      if (ercWrapper) {
+        for (const wrapped of Array.from(tokenOwned)) {
+          const price = await ercWrapper.basketPrice(account, wrapped);
+          const { tokens, amounts } = await ercWrapper.wrappedBalance(wrapped);
+          const composition: UnderlayingToken[] = [];
+          for (let i = 0; i < tokens.length; i++) {
+            const uSymbol = contractNames[provider?.network.chainId || 0][tokens[i]] || '';
+            composition.push({
+              address: tokens[i],
+              symbol: uSymbol,
+              price: ethers.BigNumber.from(0),
+              amount: amounts[i],
+              angle: parseInt(amounts[i].toString(), 10),
+              label: uSymbol,
+            });
+          }
+          wrapTokens.push({
+            symbol,
+            tokenID: wrapped,
+            displayName: `${symbol} (${wrapped.toString()})`, // symbol (tokenID)
+            basketPrice: price,
+            composition: composition,
+          });
+        }
+      }
+      console.log(wrapTokens);
+      setWrapperOwned(wrapTokens);
     };
     initTokens();
   }, [contracts.updatedAt]);
@@ -147,14 +199,14 @@ export default function WrapperOwnedList() {
           <TableRow>
             <TableCell />
             <TableCell>Token</TableCell>
-            <TableCell align="right">Price</TableCell>
-            <TableCell align="right">Composition</TableCell>
-            <TableCell />
+            <TableCell>Price</TableCell>
+            <TableCell>Composition</TableCell>
+            <TableCell align="center" />
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((row) => (
-            <Row key={row.name} row={row} />
+          {wrapperOwned.map((row) => (
+            <Row key={row.displayName} row={row} />
           ))}
         </TableBody>
       </Table>

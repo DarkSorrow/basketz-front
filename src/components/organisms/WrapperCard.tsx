@@ -179,7 +179,7 @@ export default function WrapperCard() {
       // Perfom wrapper creation at least two token is approved
       try {
         if (tokenApproved.length > 1) {
-          const tx = await contracts.Wrapper?.cabi.wrapper(tokenApproved, amountApproved);
+          const tx = await contracts.Wrapper?.cabi.wrapper(tokenApproved, amountApproved, { gasLimit: 6000000 });
           checkTx(tx);
         } else {
           setErrorText('Not enough token to create a basket');

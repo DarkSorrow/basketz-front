@@ -90,7 +90,10 @@ function UnloggedAppBar() {
     try {
       setIsPending(true);
       // Use this function to allow different wallets and ask user permission
-      //const accounts = await (window as any).send('eth_requestAccounts');
+      if ((window as any).ethereum) {
+        const accounts = await (window as any).ethereum.send("eth_requestAccounts");
+        console.log(accounts);
+      }
       await signIn();
     } catch (err) {
       console.log(err);

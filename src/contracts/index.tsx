@@ -1,6 +1,7 @@
 import abis from './abis';
-import { tokensList } from './addresses';
+import { tokensList, contractNames } from './addresses';
 export {
   abis,
   tokensList,
+  contractNames,
 }

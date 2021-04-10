@@ -153,7 +153,6 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
           console.log('inside check transaction from wallet');
           console.log(err);
         }
-        
       },
     }),
     []
