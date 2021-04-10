@@ -262,7 +262,7 @@ export default function WrapperOwnedList() {
 
   const listOwnedToken = async () => {
     const ercWrapper = contracts.Wrapper?.cabi;
-    const tokensId = new Set<ethers.BigNumber>();
+    const tokensId = new Set<string>();
     if (ercWrapper) {
       const fromLogs = await ercWrapper.queryFilter(
         ercWrapper.filters.Transfer(account, null),
@@ -270,20 +270,18 @@ export default function WrapperOwnedList() {
       const sentLogs = await ercWrapper.queryFilter(
         ercWrapper.filters.Transfer(null, account),
       );
-      console.log(sentLogs)
       const logs = fromLogs.concat(sentLogs).sort((a, b) =>
           a.blockNumber - b.blockNumber ||
           a.transactionIndex - b.transactionIndex,
       );
       const checkAccount = account.toLowerCase();
-      
       for (let i = 0; i < logs.length; i++) {
         if (logs[i] && logs[i].args) {
           // const { from, to, tokenId } = logs[i].args;
           if (logs[i].args?.to.toLowerCase() === checkAccount) {
-            tokensId.add(logs[i].args?.tokenId);
+            tokensId.add(logs[i].args?.tokenId.toString());
           } else if (logs[i].args?.from.toLowerCase() === checkAccount) {
-            tokensId.delete(logs[i].args?.tokenId);
+            tokensId.delete(logs[i].args?.tokenId.toString());
           }
         }
       }
@@ -297,12 +295,13 @@ export default function WrapperOwnedList() {
       isLoading: true,
     });
     const initTokens = async () => {
-      const tokenOwned: Set<ethers.BigNumber> = await listOwnedToken();
+      const tokenOwned: Set<string> = await listOwnedToken();
       const symbol = 'BWRAP';
       const wrapTokens: WrapTokens[] = [];
       const ercWrapper = contracts.Wrapper?.cabi;
       if (ercWrapper) {
-        for (const wrapped of Array.from(tokenOwned)) {
+        for (const tokenSID of Array.from(tokenOwned)) {
+          const wrapped = ethers.BigNumber.from(tokenSID)
           try {
             const price = await ercWrapper.basketPrice(account, wrapped);
             const { tokens, amounts } = await ercWrapper.wrappedBalance(wrapped);
