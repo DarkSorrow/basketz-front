@@ -6,9 +6,11 @@ import Paper from '@material-ui/core/Paper';
 import Grid from '@material-ui/core/Grid';
 import * as CSS from 'csstype';
 import { ethers } from 'ethers';
+import Button from '@material-ui/core/Button';
 
 import { useWallet } from '../../providers';
 import { DepositCard, WrapperCard, WrapperOwnedList } from '../organisms';
+import { TransactionSnackbars } from '../molecules';
 
 const Item = styled(Paper)(({ theme }) => ({
   // TODO withStyles removal
@@ -27,7 +29,7 @@ const NotAvailable = () => {
 }
 
 export default function DashboardPage() {
-  const { provider, account, contracts } = useWallet();
+  const { provider, account, contracts, checkTx } = useWallet();
   const [etherBalance, setEtherBalance] = useState<string>();
   useEffect(() => {
     const initState = async () => {
@@ -90,6 +92,7 @@ export default function DashboardPage() {
           </Grid>
         </Grid>
       </Grid>
+      <TransactionSnackbars />
     </Box>
   );
 }

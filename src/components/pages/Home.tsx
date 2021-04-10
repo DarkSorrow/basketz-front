@@ -18,11 +18,8 @@ import Chip from '@material-ui/core/Chip';
 import Tooltip from '@material-ui/core/Tooltip';
 
 import DashboardPage from './Dashboard';
+import BasketzArticle from '../organisms/BasketzArticle'
 import { useWallet } from '../../providers';
-
-function Home() {
-  return <h1>Home stuff</h1>
-}
 
 function NoMatch() {
   return <h1>Doesnt exist</h1>
@@ -116,7 +113,9 @@ function UnloggedAppBar() {
     <Toolbar />
     <Switch>
       <Route exact path="/">
-        <Home />
+        <Box sx={{ flexGrow: 1, pt: 1, pb: 5 }}>
+          <BasketzArticle />
+        </Box>
       </Route>
       <Route path="*">
         <NoMatch />

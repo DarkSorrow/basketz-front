@@ -76,6 +76,7 @@ const DepositCard = ({ contract, ethBalance, setEthBalance } : IProps) =>  {
   };
 
   useEffect(() => {
+    console.log('reload contract balance ' + contract.name);
     queryContract();
     return () => {
       console.log('unmounting mocked contract');

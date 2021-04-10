@@ -37,6 +37,7 @@ interface WalletState /*extends ProviderInformation*/ {
   account: string
   status: 'idle' | 'signOut' | 'signIn'
   contracts: ContractList
+  txStatus: string
 }
 //type WalletAction = { type: 'SIGN_IN'; token: string } | { type: 'SIGN_OUT' }
 type WalletAction = 
@@ -48,7 +49,8 @@ type WalletAction =
   } |
   { type: 'SIGN_OUT' } |
   { type: 'LOAD_ACCOUNT', contracts: ContractList } |
-  { type: 'TRANSACTION_DONE' };
+  { type: 'TRANSACTION_START', txStatus: string } |
+  { type: 'TRANSACTION_DONE', txStatus: string };;
 
 interface WalletContextActions {
   signIn: () => void
@@ -64,11 +66,24 @@ const WalletContext = createContext<WalletContextType>({
   listAccount: [],
   contracts: {...initContractList},
   status: 'idle',
+  txStatus: '',
   signIn: () => {},
   signOut: () => {},
   checkTx: (transaction: any) => {},
-})
+});
+
+/*interface test {
+  status: boolean,
+  transactionHash: string
+  gasUsed: ethers.BigNumber
+}
+
+function sleep(ms: number): Promise<test> {
+  return new Promise(resolve => setTimeout(resolve, ms, { status: false, transactionHash: 'test', gasUsed: ethers.BigNumber.from(0)}));
+}*/
+
 export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
+  let timer: NodeJS.Timeout | null = null;
   const [state, dispatch] = useReducer(WalletReducer, {
     provider: null,
     signer: null,
@@ -76,6 +91,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     contracts: {...initContractList},
     account: '',
     status: 'idle',
+    txStatus: '',
   });
 
   useEffect(() => {
@@ -144,12 +160,23 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       },
       checkTx: async (transaction: any) => {
         try {
-          console.log(transaction);
           if (transaction.wait) {
-            await transaction.wait();
-            dispatch({ type: 'TRANSACTION_DONE' });  
+            dispatch({ type: 'TRANSACTION_START', txStatus: `transaction ${transaction.hash} with ${ethers.utils.formatEther(transaction.gasPrice)} gas and ${ethers.utils.formatEther(transaction.gasLimit)} gas limit` });
+            const rcpt = await transaction.wait();
+            if (timer) {
+              clearInterval(timer);
+            }
+            const resultString = `${rcpt.transactionHash} with ${ethers.utils.formatEther(rcpt.gasUsed)} gas used.`;
+            timer = setTimeout(function timeout() {
+              if (rcpt.status === 1) {
+                dispatch({ type: 'TRANSACTION_DONE', txStatus: `success: ${resultString}` });
+              } else {
+                dispatch({ type: 'TRANSACTION_DONE', txStatus: `error: ${resultString}` });
+              }  
+            }, 2000)
           }
         } catch (err) {
+          dispatch({ type: 'TRANSACTION_DONE', txStatus: `error: transaction failed with a server error.` });
           console.log('inside check transaction from wallet');
           console.log(err);
         }
@@ -188,17 +215,25 @@ const WalletReducer = (prevState: WalletState, action: WalletAction): WalletStat
     case 'LOAD_ACCOUNT':
       return {
         ...prevState,
-        contracts: action.contracts
+        contracts: action.contracts,
+        txStatus: '',
       }
-    case 'TRANSACTION_DONE':
+    case 'TRANSACTION_START':
       console.log('transaction dispatch made');
       return {
         ...prevState,
-        contracts: {
-          ...prevState.contracts,
-          updatedAt: new Date(),
-        }
+        txStatus: action.txStatus,
       }
+      case 'TRANSACTION_DONE':
+        console.log('transaction dispatch made');
+        return {
+          ...prevState,
+          contracts: {
+            ...prevState.contracts,
+            updatedAt: new Date(),
+          },
+          txStatus: action.txStatus,
+        }
   }
 }
 
