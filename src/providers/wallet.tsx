@@ -94,6 +94,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     txStatus: '',
   });
 
+  /**provider.on("block", () => { const b = await provider.getBalance(addr); if (b.ne(balance)) { doStuff(); balance = b; } }); */
   useEffect(() => {
     const initContracts = async () => {
       try {

@@ -53,13 +53,14 @@ interface WrapTokens {
   displayName: string, // symbol (tokenID)
   basketPrice: ethers.BigNumber,
   composition: UnderlayingToken[],
+  tokenInOrder: boolean,
 }
 
 interface IRowProps {
   row: WrapTokens
 };
 
-type DialogType = 'close' | 'transfer';
+type DialogType = 'close' | 'transfer' | 'createOrder' | 'cancelOrder';
 
 interface IDialogsProps {
   dialogType: DialogType
@@ -67,15 +68,92 @@ interface IDialogsProps {
   handleDialogClose: () => void
 }
 
-interface ITransferProps extends IDialogsProps {
-  test?: string
-}
-
 interface ITradeProps extends IDialogsProps {
   tokenID: ethers.BigNumber
 }
+const isNumber = /^[0-9]+(\.)?[0-9]*$/;
 
-const DialogTransfer = ({ wrapToken, handleDialogClose }: ITransferProps) => {
+const DialogCancelOrder = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
+  const { contracts, checkTx } = useWallet();
+  const [isPending, setIsPending] = useState<boolean>(false);
+  const cancelOrder = async () => {
+    setIsPending(true);
+    try {
+      const tx = await contracts.Wrapper?.cabi.cancelOrder(wrapToken.tokenID, { gasLimit: 6000000 });
+      checkTx(tx);
+      handleDialogClose();
+    } catch (err) {
+      console.log(err);
+    }
+    setIsPending(false);
+  }
+  return (
+    <>
+      <DialogTitle id="form-dialog-title">{wrapToken.displayName}</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          Cancel your order, you will remove your NFT from the order list and be able to transfer or unwrap it again.
+        </DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleDialogClose}>Close</Button>
+        <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={cancelOrder}>
+          Cancel order
+        </LoadingButton>
+      </DialogActions>
+    </>
+  )
+}
+
+const DialogCreateOrder = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
+  const { contracts, checkTx } = useWallet();
+  const [isPending, setIsPending] = useState<boolean>(false);
+  const [premium, setPremium] = useState<string>('0');
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (isNumber.test(event.target.value)) {
+      setPremium(event.target.value);
+    }
+  };
+  const createOrder = async () => {
+    setIsPending(true);
+    try {
+      const tx = await contracts.Wrapper?.cabi.createOrder(wrapToken.tokenID, ethers.utils.parseEther(premium), { gasLimit: 6000000 });
+      checkTx(tx);
+      handleDialogClose();
+    } catch (err) {
+      console.log(err);
+    }
+    setIsPending(false);
+  }
+  return (
+    <>
+      <DialogTitle id="form-dialog-title">{wrapToken.displayName}</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          Create an order, this will lock your NFT until someone fullfill your order or you cancel it.
+        </DialogContentText>
+        <TextField
+          label="Premium"
+          value={premium}
+          onChange={handleChange}
+          variant="standard"
+          helperText="ETH premium on your NFT"
+          type="text"
+          autoFocus
+          fullWidth
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleDialogClose}>Close</Button>
+        <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={createOrder}>
+          Create order
+        </LoadingButton>
+      </DialogActions>
+    </>
+  )
+}
+
+const DialogTransfer = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
   const { contracts, account, checkTx } = useWallet();
   const [isPending, setIsPending] = useState<boolean>(false);
   const [error, setError] = useState<string|null>(null);
@@ -123,7 +201,7 @@ const DialogTransfer = ({ wrapToken, handleDialogClose }: ITransferProps) => {
         />
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleDialogClose}>Cancel</Button>
+        <Button onClick={handleDialogClose}>Close</Button>
         <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={transferToken}>
           Transfer
         </LoadingButton>
@@ -132,10 +210,14 @@ const DialogTransfer = ({ wrapToken, handleDialogClose }: ITransferProps) => {
   )
 }
 
-const DialogSelector = (props: ITransferProps | ITradeProps) => {
+const DialogSelector = (props: IDialogsProps | ITradeProps) => {
   switch (props.dialogType) {
     case 'transfer':
       return <DialogTransfer {...props} />;
+    case 'createOrder':
+      return <DialogCreateOrder {...props} />;
+    case 'cancelOrder':
+      return <DialogCancelOrder {...props} />;
     default:
       return null
   }
@@ -147,8 +229,15 @@ function Row({ row }: IRowProps) {
   const classes = useRowStyles();
   const [isPending, setIsPending] = useState<boolean>(false);
   const { contracts, checkTx } = useWallet();
+  // change to a function but this recreate function all the time
   const openTransferTo = () => {
     setOpenDialog('transfer');
+  };
+  const openCreateOrder = () => {
+    setOpenDialog('createOrder');
+  };
+  const openCancelOrder = () => {
+    setOpenDialog('cancelOrder');
   };
   const handleDialogClose = () => {
     setOpenDialog('close');
@@ -192,14 +281,27 @@ function Row({ row }: IRowProps) {
           </Grid>
         </TableCell>
         <TableCell align="center">
-          <Grid container direction="row" justifyContent="space-between" alignItems="center">
+          {row.tokenInOrder ? 
+          <LoadingButton variant="contained" color="inherit" pending={isPending} onClick={openCancelOrder}>
+            Cancel Order
+          </LoadingButton> : 
+          <Grid container direction="row" spacing={2}>
+            <Grid item xs={6}>
             <LoadingButton variant="contained" color="primary" pending={isPending} onClick={unwrapToken}>
               Unwrap
             </LoadingButton>
-            <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={openTransferTo}>
-              Transfer
-            </LoadingButton>
-          </Grid>
+            </Grid>
+            <Grid item xs={6}>
+              <LoadingButton variant="contained" color="primary" pending={isPending} onClick={openTransferTo}>
+                Transfer
+              </LoadingButton>
+            </Grid>
+            <Grid item xs={12}>
+              <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={openCreateOrder}>
+                Create Order
+              </LoadingButton>
+            </Grid>
+          </Grid>}
         </TableCell>
         <TableCell>
           <Dialog open={openDialog !== 'close'} onClose={handleDialogClose} aria-labelledby="form-dialog-title">
@@ -303,7 +405,8 @@ export default function WrapperOwnedList() {
         for (const tokenSID of Array.from(tokenOwned)) {
           const wrapped = ethers.BigNumber.from(tokenSID)
           try {
-            const price = await ercWrapper.basketPrice(account, wrapped);
+            //const basketPrice = await ercWrapper.basketPrice(account, wrapped);
+            const { price, onSale } = await ercWrapper.bidding(account, wrapped);
             const { tokens, amounts } = await ercWrapper.wrappedBalance(wrapped);
             const composition: UnderlayingToken[] = [];
             for (let i = 0; i < tokens.length; i++) {
@@ -323,6 +426,7 @@ export default function WrapperOwnedList() {
               displayName: `${symbol} (${wrapped.toString()})`, // symbol (tokenID)
               basketPrice: price,
               composition: composition,
+              tokenInOrder: onSale,
             });
           } catch (err) {
             console.log('error in asking basket prices');
