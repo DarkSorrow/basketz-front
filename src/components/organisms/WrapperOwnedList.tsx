@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
 import Box from '@material-ui/core/Box';
 import Collapse from '@material-ui/core/Collapse';
@@ -16,7 +16,16 @@ import LoadingButton from '@material-ui/lab/LoadingButton';
 import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@material-ui/icons/KeyboardArrowUp';
 import Grid from '@material-ui/core/Grid';
+import TextField from '@material-ui/core/TextField';
+import Dialog from '@material-ui/core/Dialog';
+import DialogActions from '@material-ui/core/DialogActions';
+import DialogContent from '@material-ui/core/DialogContent';
+import DialogContentText from '@material-ui/core/DialogContentText';
+import DialogTitle from '@material-ui/core/DialogTitle';
+import Button from '@material-ui/core/Button';
+
 import { ethers } from 'ethers';
+import { TableSkel } from '../atoms';
 import { PieChart } from '../molecules';
 import { contractNames } from '../../contracts'
 import { useWallet } from '../../providers';
@@ -46,16 +55,104 @@ interface WrapTokens {
   composition: UnderlayingToken[],
 }
 
-interface IProps {
+interface IRowProps {
   row: WrapTokens
 };
 
-function Row({ row }: IProps) {
+type DialogType = 'close' | 'transfer';
+
+interface IDialogsProps {
+  dialogType: DialogType
+  wrapToken: WrapTokens
+  handleDialogClose: () => void
+}
+
+interface ITransferProps extends IDialogsProps {
+  test?: string
+}
+
+interface ITradeProps extends IDialogsProps {
+  tokenID: ethers.BigNumber
+}
+
+const DialogTransfer = ({ wrapToken, handleDialogClose }: ITransferProps) => {
+  const { contracts, account, checkTx } = useWallet();
+  const [isPending, setIsPending] = useState<boolean>(false);
+  const [error, setError] = useState<string|null>(null);
+  const addressRef = useRef<HTMLInputElement>(null)
+  const transferToken = async () => {
+    setIsPending(true);
+    setError(null);
+    try {
+      const input = addressRef.current;
+      if (input && ethers.utils.isAddress(input.value)) {
+        if (input.value.toLowerCase() === account.toLowerCase()) {
+          setError('Nice try choose a different address than yours!');  
+        } else {
+          const tx = await contracts.Wrapper?.cabi.transferFrom(account, input.value, wrapToken.tokenID, { gasLimit: 6000000 });
+          checkTx(tx);
+          handleDialogClose();
+        }
+      } else {
+        setError('Address format is incorrect');
+      }
+    } catch (err) {
+      setError('Error trying to proceed with request');
+      console.log(err);
+    }
+    setIsPending(false);
+  }
+  return (
+    <>
+      <DialogTitle id="form-dialog-title">{wrapToken.displayName}</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          Transfer the ownership of the token to another address.
+        </DialogContentText>
+        <TextField
+          error={error !== null}
+          helperText={error}
+          autoFocus
+          inputRef={addressRef}
+          margin="dense"
+          id="transfer-address"
+          label="Transfer to"
+          type="text"
+          fullWidth
+          variant="standard"
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleDialogClose}>Cancel</Button>
+        <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={transferToken}>
+          Transfer
+        </LoadingButton>
+      </DialogActions>
+    </>
+  )
+}
+
+const DialogSelector = (props: ITransferProps | ITradeProps) => {
+  switch (props.dialogType) {
+    case 'transfer':
+      return <DialogTransfer {...props} />;
+    default:
+      return null
+  }
+}
+
+function Row({ row }: IRowProps) {
   const [open, setOpen] = useState(false);
+  const [openDialog, setOpenDialog] = useState<DialogType>('close');
   const classes = useRowStyles();
   const [isPending, setIsPending] = useState<boolean>(false);
   const { contracts, checkTx } = useWallet();
-
+  const openTransferTo = () => {
+    setOpenDialog('transfer');
+  };
+  const handleDialogClose = () => {
+    setOpenDialog('close');
+  };
   const unwrapToken = async () => {
     setIsPending(true);
     try {
@@ -67,15 +164,6 @@ function Row({ row }: IProps) {
     setIsPending(false);
   }
 
-  const transferTo = async () => {
-    setIsPending(true);
-    try {
-      console.log("display transfor to form")
-    } catch (err) {
-      console.log(err);
-    }
-    setIsPending(false);
-  }
   // useEffect when open is true setTimer will get information about the price from outside feed
   return (
     <>
@@ -108,13 +196,15 @@ function Row({ row }: IProps) {
             <LoadingButton variant="contained" color="primary" pending={isPending} onClick={unwrapToken}>
               Unwrap
             </LoadingButton>
-            <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={transferTo}>
+            <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={openTransferTo}>
               Transfer
             </LoadingButton>
           </Grid>
         </TableCell>
         <TableCell>
-
+          <Dialog open={openDialog !== 'close'} onClose={handleDialogClose} aria-labelledby="form-dialog-title">
+            <DialogSelector dialogType={openDialog} wrapToken={row} handleDialogClose={handleDialogClose} />
+          </Dialog>
         </TableCell>
       </TableRow>
       <TableRow>
@@ -158,33 +248,42 @@ function Row({ row }: IProps) {
   );
 }
 
+interface AssetsOwned {
+  wrap: WrapTokens[];
+  isLoading: boolean;
+}
+
 export default function WrapperOwnedList() {
   const { provider, account, contracts } = useWallet();
-  const [ wrapperOwned, setWrapperOwned ] = useState<WrapTokens[]>([]);
+  const [ assets, setAssets ] = useState<AssetsOwned>({
+    wrap: [],
+    isLoading: true,
+  });
 
   const listOwnedToken = async () => {
     const ercWrapper = contracts.Wrapper?.cabi;
     const tokensId = new Set<ethers.BigNumber>();
     if (ercWrapper) {
-      let tLogs = await ercWrapper.queryFilter(
+      const fromLogs = await ercWrapper.queryFilter(
         ercWrapper.filters.Transfer(account, null),
       );
-      tLogs = tLogs.concat(await ercWrapper.queryFilter(
+      const sentLogs = await ercWrapper.queryFilter(
         ercWrapper.filters.Transfer(null, account),
-      ));
-      const logs = tLogs.sort((a, b) =>
+      );
+      console.log(sentLogs)
+      const logs = fromLogs.concat(sentLogs).sort((a, b) =>
           a.blockNumber - b.blockNumber ||
           a.transactionIndex - b.transactionIndex,
       );
       const checkAccount = account.toLowerCase();
       
-      for (const log of logs) {
-        if (log.args) {
-          const { from, to, tokenId } = log.args;
-          if (to.toLowerCase() === checkAccount) {
-            tokensId.add(tokenId);
-          } else if (from.toLowerCase() === checkAccount) {
-            tokensId.delete(tokenId);
+      for (let i = 0; i < logs.length; i++) {
+        if (logs[i] && logs[i].args) {
+          // const { from, to, tokenId } = logs[i].args;
+          if (logs[i].args?.to.toLowerCase() === checkAccount) {
+            tokensId.add(logs[i].args?.tokenId);
+          } else if (logs[i].args?.from.toLowerCase() === checkAccount) {
+            tokensId.delete(logs[i].args?.tokenId);
           }
         }
       }
@@ -193,8 +292,11 @@ export default function WrapperOwnedList() {
   }
 
   useEffect(() => {
+    setAssets({
+      wrap: [],
+      isLoading: true,
+    });
     const initTokens = async () => {
-      //function wrappedBalance(uint256 _wrapId)
       const tokenOwned: Set<ethers.BigNumber> = await listOwnedToken();
       const symbol = 'BWRAP';
       const wrapTokens: WrapTokens[] = [];
@@ -229,11 +331,23 @@ export default function WrapperOwnedList() {
           }
         }
       }
-      setWrapperOwned(wrapTokens);
+      setAssets({
+        wrap: wrapTokens,
+        isLoading: false,
+      });
     };
     initTokens();
+    return () => {
+      console.log(assets);
+    }
   }, [contracts.updatedAt]);
+
+  if (assets.isLoading === true) {
+    return <TableSkel />;
+  }
   return (
+    assets.isLoading ? 
+    <TableSkel /> : 
     <TableContainer component={Paper}>
       <Table aria-label="collapsible table">
         <TableHead>
@@ -247,7 +361,7 @@ export default function WrapperOwnedList() {
           </TableRow>
         </TableHead>
         <TableBody>
-          {wrapperOwned.map((row) => (
+          {assets.wrap.map((row) => (
             <Row key={row.displayName} row={row} />
           ))}
         </TableBody>

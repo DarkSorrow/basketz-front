@@ -166,7 +166,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
             if (timer) {
               clearTimeout(timer);
             }
-            const resultString = `${rcpt.transactionHash} with ${ethers.utils.formatEther(rcpt.gasUsed)} gas used.`;
+            const resultString = `${rcpt.transactionHash} with ${rcpt.gasUsed.toString()} gas used.`;
             timer = setTimeout(function timeout() {
               if (rcpt.status === 1) {
                 dispatch({ type: 'TRANSACTION_DONE', txStatus: `success: ${resultString}` });
