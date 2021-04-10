@@ -161,12 +161,16 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       checkTx: async (transaction: any) => {
         try {
           if (transaction.wait) {
-            dispatch({ type: 'TRANSACTION_START', txStatus: `transaction ${transaction.hash} with ${ethers.utils.formatEther(transaction.gasPrice)} gas and ${ethers.utils.formatEther(transaction.gasLimit)} gas limit` });
+            dispatch({ type: 'TRANSACTION_START', txStatus: `transaction ${transaction.hash} with ${
+              ethers.utils.formatEther(transaction.gasPrice)
+            } ETH and ${
+              ethers.utils.formatEther(transaction.gasLimit)
+            } ETH limit` });
             const rcpt = await transaction.wait();
             if (timer) {
               clearTimeout(timer);
             }
-            const resultString = `${rcpt.transactionHash} with ${rcpt.gasUsed.toString()} gas used.`;
+            const resultString = `${rcpt.transactionHash} with ${ethers.utils.formatEther(rcpt.gasUsed)} ETH used.`;
             timer = setTimeout(function timeout() {
               if (rcpt.status === 1) {
                 dispatch({ type: 'TRANSACTION_DONE', txStatus: `success: ${resultString}` });
@@ -224,16 +228,16 @@ const WalletReducer = (prevState: WalletState, action: WalletAction): WalletStat
         ...prevState,
         txStatus: action.txStatus,
       }
-      case 'TRANSACTION_DONE':
-        console.log('transaction dispatch made');
-        return {
-          ...prevState,
-          contracts: {
-            ...prevState.contracts,
-            updatedAt: new Date(),
-          },
-          txStatus: action.txStatus,
-        }
+    case 'TRANSACTION_DONE':
+      console.log('transaction dispatch made');
+      return {
+        ...prevState,
+        contracts: {
+          ...prevState.contracts,
+          updatedAt: new Date(),
+        },
+        txStatus: action.txStatus,
+      }
   }
 }
 
