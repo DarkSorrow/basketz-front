@@ -84,8 +84,8 @@ const DialogCancelOrder = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
       handleDialogClose();
     } catch (err) {
       console.log(err);
+      setIsPending(false);
     }
-    setIsPending(false);
   }
   return (
     <>
@@ -122,8 +122,8 @@ const DialogCreateOrder = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
       handleDialogClose();
     } catch (err) {
       console.log(err);
+      setIsPending(false);
     }
-    setIsPending(false);
   }
   return (
     <>
@@ -170,6 +170,7 @@ const DialogTransfer = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
           const tx = await contracts.Wrapper?.cabi.transferFrom(account, input.value, wrapToken.tokenID, { gasLimit: 6000000 });
           checkTx(tx);
           handleDialogClose();
+          return ;
         }
       } else {
         setError('Address format is incorrect');
