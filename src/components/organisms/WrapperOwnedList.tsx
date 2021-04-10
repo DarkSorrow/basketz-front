@@ -70,8 +70,7 @@ function Row({ row }: IProps) {
   const transferTo = async () => {
     setIsPending(true);
     try {
-      const tx = await contracts.Wrapper?.cabi.unwrapper(row.tokenID, { gasLimit: 6000000 });
-      checkTx(tx);
+      console.log("display transfor to form")
     } catch (err) {
       console.log(err);
     }
