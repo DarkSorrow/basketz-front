@@ -15,6 +15,7 @@ import Paper from '@material-ui/core/Paper';
 import LoadingButton from '@material-ui/lab/LoadingButton';
 import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@material-ui/icons/KeyboardArrowUp';
+import Grid from '@material-ui/core/Grid';
 import { ethers } from 'ethers';
 import { PieChart } from '../molecules';
 import { contractNames } from '../../contracts'
@@ -66,6 +67,16 @@ function Row({ row }: IProps) {
     setIsPending(false);
   }
 
+  const transferTo = async () => {
+    setIsPending(true);
+    try {
+      const tx = await contracts.Wrapper?.cabi.unwrapper(row.tokenID, { gasLimit: 6000000 });
+      checkTx(tx);
+    } catch (err) {
+      console.log(err);
+    }
+    setIsPending(false);
+  }
   // useEffect when open is true setTimer will get information about the price from outside feed
   return (
     <>
@@ -82,14 +93,29 @@ function Row({ row }: IProps) {
         <TableCell component="th" scope="row">
           {row.displayName}
         </TableCell>
-        <TableCell>{ethers.utils.formatEther(row.basketPrice)}</TableCell>
+        <TableCell align="center">{ethers.utils.formatEther(row.basketPrice)}</TableCell>
         <TableCell padding="none">
-          <PieChart data={row.composition} />
+          <Grid
+            container
+            direction="row"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <PieChart data={row.composition} />
+          </Grid>
+        </TableCell>
+        <TableCell align="center">
+          <Grid container direction="row" justifyContent="space-between" alignItems="center">
+            <LoadingButton variant="contained" color="primary" pending={isPending} onClick={unwrapToken}>
+              Unwrap
+            </LoadingButton>
+            <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={transferTo}>
+              Transfer
+            </LoadingButton>
+          </Grid>
         </TableCell>
         <TableCell>
-          <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={unwrapToken}>
-            Unwrap
-          </LoadingButton>
+
         </TableCell>
       </TableRow>
       <TableRow>
@@ -215,9 +241,10 @@ export default function WrapperOwnedList() {
           <TableRow>
             <TableCell />
             <TableCell>Token</TableCell>
-            <TableCell>Price</TableCell>
-            <TableCell>Composition</TableCell>
-            <TableCell align="center" />
+            <TableCell align="center">Price</TableCell>
+            <TableCell align="center">Composition</TableCell>
+            <TableCell sx={{width: 250}} />
+            <TableCell padding="none" sx={{width: 5}}></TableCell>
           </TableRow>
         </TableHead>
         <TableBody>

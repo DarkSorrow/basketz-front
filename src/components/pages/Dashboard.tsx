@@ -66,14 +66,14 @@ export default function DashboardPage() {
             <Item>Average Gas Usage</Item>
           </Grid>
         </Grid>
-        <Grid container item justifyContent="center" spacing={2}>
-          <Grid item xs={6}>
+        <Grid container item>
+          <Grid item container direction="row" justifyContent="center" alignItems="center" xs={6}>
             {(contracts.MockA) ? <DepositCard 
               contract={contracts.MockA}
               ethBalance={etherBalance} 
               setEthBalance={setEtherBalance} /> : <NotAvailable />}
           </Grid>
-          <Grid item xs={6}>
+          <Grid item container direction="row" justifyContent="center" alignItems="center" xs={6}>
             {(contracts.MockB) ? <DepositCard 
               contract={contracts.MockB}
               ethBalance={etherBalance} 
