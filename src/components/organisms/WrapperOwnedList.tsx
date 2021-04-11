@@ -79,7 +79,7 @@ const DialogCancelOrder = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
   const cancelOrder = async () => {
     setIsPending(true);
     try {
-      const tx = await contracts.Wrapper?.cabi.cancelOrder(wrapToken.tokenID, { gasLimit: 6000000 });
+      const tx = await contracts.Wrapper?.cabi.cancelOrder(wrapToken.tokenID, { gasLimit: 600000 });
       checkTx(tx);
       handleDialogClose();
     } catch (err) {
@@ -117,7 +117,7 @@ const DialogCreateOrder = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
   const createOrder = async () => {
     setIsPending(true);
     try {
-      const tx = await contracts.Wrapper?.cabi.createOrder(wrapToken.tokenID, ethers.utils.parseEther(premium), { gasLimit: 6000000 });
+      const tx = await contracts.Wrapper?.cabi.createOrder(wrapToken.tokenID, ethers.utils.parseEther(premium), { gasLimit: 600000 });
       checkTx(tx);
       handleDialogClose();
     } catch (err) {
@@ -167,7 +167,7 @@ const DialogTransfer = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
         if (input.value.toLowerCase() === account.toLowerCase()) {
           setError('Nice try choose a different address than yours!');  
         } else {
-          const tx = await contracts.Wrapper?.cabi.transferFrom(account, input.value, wrapToken.tokenID, { gasLimit: 6000000 });
+          const tx = await contracts.Wrapper?.cabi.transferFrom(account, input.value, wrapToken.tokenID, { gasLimit: 600000 });
           checkTx(tx);
           handleDialogClose();
           return ;
@@ -246,7 +246,7 @@ function Row({ row }: IRowProps) {
   const unwrapToken = async () => {
     setIsPending(true);
     try {
-      const tx = await contracts.Wrapper?.cabi.unwrapper(row.tokenID, { gasLimit: 6000000 });
+      const tx = await contracts.Wrapper?.cabi.unwrapper(row.tokenID, { gasLimit: 600000 });
       checkTx(tx);
     } catch (err) {
       console.log(err);

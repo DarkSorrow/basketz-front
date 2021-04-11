@@ -8,7 +8,7 @@ import * as CSS from 'csstype';
 import { ethers } from 'ethers';
 
 import { useWallet } from '../../providers';
-import { DepositCard, WrapperCard, WrapperOwnedList } from '../organisms';
+import { DepositCard, WrapperCard, WrapperOwnedList, BiddingWrapper } from '../organisms';
 import { TransactionSnackbars } from '../molecules';
 
 const Item = styled(Paper)(({ theme }) => ({
@@ -88,6 +88,11 @@ export default function DashboardPage() {
         <Grid container item>
           <Grid item xs={12}>
             <WrapperOwnedList />
+          </Grid>
+        </Grid>
+        <Grid container item>
+          <Grid item xs={12}>
+            <BiddingWrapper />
           </Grid>
         </Grid>
       </Grid>
