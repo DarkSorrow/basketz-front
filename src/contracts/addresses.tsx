@@ -46,35 +46,3 @@ export const contractNames: ContractNames = {
     '0x7aAE0b58df51A346182a11294e4Af42EEB3dA4c0': 'MockD',
   },
 }
-
-interface ExplorerName {
-  explorer: (transaction: string) => string;
-}
-
-export interface ExplorerNames {
-  [chainID: number]: ExplorerName;
-}
-
-export const networkInfo: ExplorerNames = {
-  1: {//Rinkeby
-    explorer: (transcation: string) => `https://etherscan.io/tx/`,
-  },
-  4: {//Rinkeby
-    explorer: (transcation: string) => `https://rinkeby.etherscan.io/tx/`,
-  },
-  42: {//Kovan
-    explorer: (transcation: string) => `https://kovan.etherscan.io/tx/`,
-  },
-  56: {//Binance
-    explorer: (transcation: string) => `https://bscscan.com/tx/`,
-  },
-  97: {//Binance testnet
-    explorer: (transcation: string) => `https://testnet.bscscan.com/tx`,
-  },
-  137: {//Matic
-    explorer: (transcation: string) => `https://explorer-mainnet.maticvigil.com/tx/`,
-  },
-  80001: {//Matic test
-    explorer: (transcation: string) => `https://mumbai-explorer.matic.today/tx/`,
-  },
-}

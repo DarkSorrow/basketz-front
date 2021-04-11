@@ -11,4 +11,39 @@ export const ChainsID: IChainsNetwork = {
   5: "Goerli, the public cross-client PoA testnet",
   42: "Kovan, the public Parity-only PoA testnet",
   56: "Binance, the public Binance mainnet",
+  97: "Binance, the public Binance testnet",
+  137: "Matic, the public Matic mainnet",
+  80001: "Matic, the public Matic testnet",
 };
+
+interface ExplorerName {
+  explorer: (transaction: string) => string;
+}
+
+interface ExplorerNames {
+  [chainID: number]: ExplorerName;
+}
+
+export const networkInfo: ExplorerNames = {
+  1: {//Rinkeby
+    explorer: (transcation: string) => `https://etherscan.io/tx/`,
+  },
+  4: {//Rinkeby
+    explorer: (transcation: string) => `https://rinkeby.etherscan.io/tx/`,
+  },
+  42: {//Kovan
+    explorer: (transcation: string) => `https://kovan.etherscan.io/tx/`,
+  },
+  56: {//Binance
+    explorer: (transcation: string) => `https://bscscan.com/tx/`,
+  },
+  97: {//Binance testnet
+    explorer: (transcation: string) => `https://testnet.bscscan.com/tx`,
+  },
+  137: {//Matic
+    explorer: (transcation: string) => `https://explorer-mainnet.maticvigil.com/tx/`,
+  },
+  80001: {//Matic test
+    explorer: (transcation: string) => `https://mumbai-explorer.matic.today/tx/`,
+  },
+}
