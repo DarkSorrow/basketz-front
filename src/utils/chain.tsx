@@ -2,7 +2,7 @@ export interface IChainsNetwork {
   [chainID: number]: string,
 }
 
-export const ChainsID: IChainsNetwork = {
+export const chainsID: IChainsNetwork = {
   0: "Olympic, Ethereum public pre-release PoW testnet",
   1: "Frontier, Homestead, Metropolis, the Ethereum public PoW main network",
   2: "Morden Classic, the public Ethereum Classic PoW testnet, now retired",

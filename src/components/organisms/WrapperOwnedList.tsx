@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect, useRef } from 'react';
-import { makeStyles } from '@material-ui/core/styles';
+import { makeStyles, Theme, createStyles } from '@material-ui/core/styles';
 import Box from '@material-ui/core/Box';
 import Collapse from '@material-ui/core/Collapse';
 import IconButton from '@material-ui/core/IconButton';
@@ -22,7 +22,19 @@ import DialogActions from '@material-ui/core/DialogActions';
 import DialogContent from '@material-ui/core/DialogContent';
 import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogTitle from '@material-ui/core/DialogTitle';
+import AdapterDateFns from '@material-ui/lab/AdapterDateFns';
+import LocalizationProvider from '@material-ui/lab/LocalizationProvider';
+import DateTimePicker from '@material-ui/lab/DateTimePicker';
 import Button from '@material-ui/core/Button';
+import List from '@material-ui/core/List';
+import ListItem, { ListItemProps } from '@material-ui/core/ListItem';
+import ListItemIcon from '@material-ui/core/ListItemIcon';
+import ListItemText from '@material-ui/core/ListItemText';
+import FingerprintIcon from '@material-ui/icons/Fingerprint';
+import TrackChangesIcon from '@material-ui/icons/TrackChanges';
+
+import { addMinutes, differenceInSeconds, formatDistanceToNow } from 'date-fns'
+import { createHash } from '../../utils';
 
 import { ethers } from 'ethers';
 import { TableSkel } from '../atoms';
@@ -60,7 +72,7 @@ interface IRowProps {
   row: WrapTokens
 };
 
-type DialogType = 'close' | 'transfer' | 'createOrder' | 'cancelOrder';
+type DialogType = 'close' | 'transfer' | 'createOrder' | 'cancelOrder' | 'createSwap';
 
 interface IDialogsProps {
   dialogType: DialogType
@@ -72,6 +84,158 @@ interface ITradeProps extends IDialogsProps {
   tokenID: ethers.BigNumber
 }
 const isNumber = /^[0-9]+(\.)?[0-9]*$/;
+
+const copiedTextLabel: string = 'Copied to clippboard!';
+const DialogCreateSwap = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
+  const { contracts, account, checkTx } = useWallet();
+  const [activeStep, setActiveStep] = useState(0);
+  const [contractSecret, setContractSecret] = useState<string>('');
+  const [contractID, setContractID] = useState<string>('');
+  const [isPending, setIsPending] = useState<boolean>(false);
+  const [error, setError] = useState<string|null>(null);
+  const addressRef = useRef<HTMLInputElement>(null);
+  const [lockPeriod, setLockPeriod] = useState<Date | null>(addMinutes(new Date(), 30));
+  const [copy, setCopy] = useState<string[]>(['', '']);
+
+  const swapToken = async () => {
+    setIsPending(true);
+    setError(null);
+    try {
+      const input = addressRef.current;
+      if (input && ethers.utils.isAddress(input.value)) {
+        if (input.value.toLowerCase() === account.toLowerCase()) {
+          setError('Nice try choose a different address than yours!');  
+        } else {
+          if (lockPeriod) {
+            const hash = createHash()
+            const timeLock2Sec = differenceInSeconds(lockPeriod, new Date())
+            const tx = await contracts.Wrapper?.cabi.newContract(
+              input.value,
+              hash.hash,
+              timeLock2Sec,
+              contracts.Wrapper?.cabi.address,
+              wrapToken.tokenID, { gasLimit: 600000 });
+            setContractSecret(hash.secret);
+            console.log('steps to validate the contract');
+            console.log(hash.secret);
+            const receipt = await tx.wait();
+            const details = receipt.events?.filter((x: any) => { return x.event === "HTLCERC721New" });
+            const contractId = details[0].args.contractId;
+            console.log(contractId);
+            setContractID(contractId)
+            setActiveStep(1);
+            return ;  
+          }
+        }
+      } else {
+        setError('Address format is incorrect');
+      }
+    } catch (err) {
+      setError('Error trying to proceed with request');
+      console.log(err);
+    }
+    setIsPending(false);
+  }
+  const withdrawToken = async () => {
+    setIsPending(true);
+    setError(null);
+    try {
+      const tx = await contracts.Wrapper?.cabi.withdraw(contractID, contractSecret, { gasLimit: 600000 });
+      checkTx(tx);
+      handleDialogClose();
+      return ;
+    } catch (err) {
+      setError('Error trying to proceed with request');
+      console.log(err);
+    }
+    setIsPending(false);
+  }
+  // Search contract button and maybe allow the secret and hash to be stored with a reversible password password?
+  return (activeStep === 0) ? 
+    <>
+      <DialogTitle id="form-dialog-title">{wrapToken.displayName}</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          Swap your basketz using a contract. This is done in two step, you will need to stay on the screen or copy your secret and contract ID to finish later.
+        </DialogContentText>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <div style={{ width: 300 }}>
+          <DateTimePicker
+            renderInput={(params) => (
+              <TextField {...params} margin="normal" variant="standard" helperText={`Lock for ${
+                (lockPeriod) ? formatDistanceToNow(lockPeriod) : 'Choose a period'
+              }`} fullWidth />
+            )}
+            label="Locked until"
+            value={lockPeriod}
+            onChange={(newValue) => {
+              setLockPeriod(newValue);
+            }}
+            minDateTime={new Date()}
+          />
+        </div>
+        </LocalizationProvider>
+        <div style={{ width: 300 }}>
+          <TextField
+            error={error !== null}
+            helperText={error}
+            autoFocus
+            inputRef={addressRef}
+            margin="dense"
+            id="transfer-address"
+            label="Transfer to"
+            type="text"
+            fullWidth
+            variant="standard"
+          />
+        </div>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleDialogClose}>Close</Button>
+          <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={swapToken}>
+          Swap
+        </LoadingButton> 
+      </DialogActions> 
+    </> : 
+    <>
+      <DialogTitle id="form-dialog-title">{wrapToken.displayName}</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          Withdraw from the contract. Write down the contractID and secret in order to withdraw from this contract later if needed
+        </DialogContentText>
+        <List component="nav" aria-label="Contract swap">
+          <ListItem button onClick={() => {
+            setCopy([copiedTextLabel, ''])
+            setTimeout(() => setCopy(['', '']), 2000)
+            navigator.clipboard.writeText(account);
+          }}>
+            <ListItemIcon>
+              <FingerprintIcon />
+            </ListItemIcon>
+            <ListItemText primary="Contract ID" secondary={copy[0]} />
+          </ListItem>
+          <ListItem button onClick={() => {
+            setCopy(['', copiedTextLabel])
+            setTimeout(() => setCopy(['', '']), 2000)
+            navigator.clipboard.writeText(account);
+          }}>
+            <ListItemIcon>
+              <TrackChangesIcon />
+            </ListItemIcon>
+            <ListItemText primary="Contract secret" secondary={copy[1]} />
+          </ListItem>
+        </List>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleDialogClose}>Close</Button>
+        <Button >Store in localstorage with reversible password?</Button>
+        <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={withdrawToken}>
+          Witdraw
+        </LoadingButton> 
+      </DialogActions> 
+    </>
+}
+
 
 const DialogCancelOrder = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
   const { contracts, checkTx } = useWallet();
@@ -219,6 +383,8 @@ const DialogSelector = (props: IDialogsProps | ITradeProps) => {
       return <DialogCreateOrder {...props} />;
     case 'cancelOrder':
       return <DialogCancelOrder {...props} />;
+    case 'createSwap':
+      return <DialogCreateSwap {...props} />;
     default:
       return null
   }
@@ -236,6 +402,9 @@ function Row({ row }: IRowProps) {
   };
   const openCreateOrder = () => {
     setOpenDialog('createOrder');
+  };
+  const openSwapOrder = () => {
+    setOpenDialog('createSwap');
   };
   const openCancelOrder = () => {
     setOpenDialog('cancelOrder');
@@ -288,18 +457,23 @@ function Row({ row }: IRowProps) {
           </LoadingButton> : 
           <Grid container direction="row" spacing={2}>
             <Grid item xs={6}>
-            <LoadingButton variant="contained" color="primary" pending={isPending} onClick={unwrapToken}>
+            <LoadingButton variant="contained" color="primary" pending={isPending} onClick={unwrapToken} fullWidth>
               Unwrap
             </LoadingButton>
             </Grid>
             <Grid item xs={6}>
-              <LoadingButton variant="contained" color="primary" pending={isPending} onClick={openTransferTo}>
+              <LoadingButton variant="contained" color="primary" pending={isPending} onClick={openTransferTo} fullWidth>
                 Transfer
               </LoadingButton>
             </Grid>
-            <Grid item xs={12}>
-              <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={openCreateOrder}>
-                Create Order
+            <Grid item xs={6}>
+              <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={openCreateOrder} fullWidth>
+                Order
+              </LoadingButton>
+            </Grid>
+            <Grid item xs={6}>
+              <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={openSwapOrder} fullWidth>
+                Swap
               </LoadingButton>
             </Grid>
           </Grid>}

@@ -1,10 +1,13 @@
 import * as constant from './constants';
 import * as storage from './storage';
 import * as environement from './environement';
-import { ChainsID } from './chain';
+import { chainsID, networkInfo } from './chain';
+import { createHash } from './crypto';
 export { 
   constant,
   storage,
   environement,
-  ChainsID
+  chainsID,
+  networkInfo,
+  createHash,
 };
