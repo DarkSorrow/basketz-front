@@ -69,7 +69,7 @@ const WalletContext = createContext<WalletContextType>({
   txStatus: '',
   signIn: () => {},
   signOut: () => {},
-  checkTx: (transaction: any) => {},
+  checkTx: () => {},
 });
 
 /*interface test {
