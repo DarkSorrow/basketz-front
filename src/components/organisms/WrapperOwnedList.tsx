@@ -27,13 +27,13 @@ import LocalizationProvider from '@material-ui/lab/LocalizationProvider';
 import DateTimePicker from '@material-ui/lab/DateTimePicker';
 import Button from '@material-ui/core/Button';
 import List from '@material-ui/core/List';
-import ListItem, { ListItemProps } from '@material-ui/core/ListItem';
+import ListItem from '@material-ui/core/ListItem';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
 import FingerprintIcon from '@material-ui/icons/Fingerprint';
 import TrackChangesIcon from '@material-ui/icons/TrackChanges';
 
-import { addMinutes, differenceInSeconds, formatDistanceToNow } from 'date-fns'
+import { addMinutes, formatDistanceToNow } from 'date-fns'
 import { createHash } from '../../utils';
 
 import { ethers } from 'ethers';
@@ -85,7 +85,7 @@ interface ITradeProps extends IDialogsProps {
 }
 const isNumber = /^[0-9]+(\.)?[0-9]*$/;
 
-const copiedTextLabel: string = 'Copied to clippboard!';
+const copiedTextLabel: string = '(Copied to clippboard!)';
 const DialogCreateSwap = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
   const { contracts, account, checkTx } = useWallet();
   const [activeStep, setActiveStep] = useState(0);
@@ -107,12 +107,12 @@ const DialogCreateSwap = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
           setError('Nice try choose a different address than yours!');  
         } else {
           if (lockPeriod) {
-            const hash = createHash()
-            const timeLock2Sec = differenceInSeconds(lockPeriod, new Date())
+            const hash = createHash();
+            await contracts.Wrapper?.cabi.approve(contracts.Wrapper?.cabi.address, wrapToken.tokenID);
             const tx = await contracts.Wrapper?.cabi.newContract(
               input.value,
               hash.hash,
-              timeLock2Sec,
+              lockPeriod.getTime(),
               contracts.Wrapper?.cabi.address,
               wrapToken.tokenID, { gasLimit: 600000 });
             setContractSecret(hash.secret);
@@ -124,7 +124,6 @@ const DialogCreateSwap = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
             console.log(contractId);
             setContractID(contractId)
             setActiveStep(1);
-            return ;  
           }
         }
       } else {
@@ -201,34 +200,28 @@ const DialogCreateSwap = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
       <DialogTitle id="form-dialog-title">{wrapToken.displayName}</DialogTitle>
       <DialogContent>
         <DialogContentText>
-          Withdraw from the contract. Write down the contractID and secret in order to withdraw from this contract later if needed
+          Withdraw from the contract. Write down the contractID and secret in order to withdraw from this contract later if needed.
+          TODO? Store in localstorage with reversible password?
         </DialogContentText>
         <List component="nav" aria-label="Contract swap">
           <ListItem button onClick={() => {
             setCopy([copiedTextLabel, ''])
             setTimeout(() => setCopy(['', '']), 2000)
-            navigator.clipboard.writeText(account);
+            navigator.clipboard.writeText(contractID);
           }}>
-            <ListItemIcon>
-              <FingerprintIcon />
-            </ListItemIcon>
-            <ListItemText primary="Contract ID" secondary={copy[0]} />
+            <ListItemText primary={`Contact ID ${copy[0]}`} secondary={contractID} />
           </ListItem>
           <ListItem button onClick={() => {
             setCopy(['', copiedTextLabel])
             setTimeout(() => setCopy(['', '']), 2000)
-            navigator.clipboard.writeText(account);
+            navigator.clipboard.writeText(contractSecret);
           }}>
-            <ListItemIcon>
-              <TrackChangesIcon />
-            </ListItemIcon>
-            <ListItemText primary="Contract secret" secondary={copy[1]} />
+            <ListItemText primary={`Contact Secret ${copy[1]}`} secondary={contractSecret} />
           </ListItem>
         </List>
       </DialogContent>
       <DialogActions>
         <Button onClick={handleDialogClose}>Close</Button>
-        <Button >Store in localstorage with reversible password?</Button>
         <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={withdrawToken}>
           Witdraw
         </LoadingButton> 
