@@ -540,12 +540,24 @@ const DialogOpenOldSwap = ({ setOpenDialog }: ISwapDialogsProps) => {
     }
     setIsPending(false);
   }
+  const refundToken = async () => {
+    setIsPending(true);
+    try {
+      const tx = await contracts.Wrapper?.cabi.refund(contractID, { gasLimit: 600000 });
+      checkTx(tx);
+      setOpenDialog(false);
+      return ;
+    } catch (err) {
+      console.log(err);
+    }
+    setIsPending(false);
+  }
   return (
     <>
       <DialogTitle id="form-dialog-title">Withdraw from contracts</DialogTitle>
       <DialogContent>
         <DialogContentText>
-          You can put your contract ID and Secret here to get your token.
+          You can put your contract ID and Secret here to get your token or only the contract ID to refund.
         </DialogContentText>
         <TextField
           label="Contract ID"
@@ -570,7 +582,10 @@ const DialogOpenOldSwap = ({ setOpenDialog }: ISwapDialogsProps) => {
       </DialogContent>
       <DialogActions>
         <Button onClick={() => { setOpenDialog(false) }}>Close</Button>
-        <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={withdrawToken}>
+        <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={refundToken}>
+          Refund
+        </LoadingButton>
+        <LoadingButton variant="contained" color="primary" pending={isPending} onClick={withdrawToken}>
           Withdraw
         </LoadingButton>
       </DialogActions>
@@ -695,7 +710,7 @@ export default function WrapperOwnedList() {
         <TableHead>
           <TableRow className={classes.root}>
             <TableCell colSpan={6}>
-              <Button variant="outlined" onClick={() => setOpenDialog(true)}>Open swap contract forms</Button>
+              <Button variant="outlined" onClick={() => setOpenDialog(true)}>Swap contract forms</Button>
               <Dialog open={openDialog} onClose={() => setOpenDialog(false)} aria-labelledby="form-dialog-title">
                 <DialogOpenOldSwap setOpenDialog={setOpenDialog} />
               </Dialog>
