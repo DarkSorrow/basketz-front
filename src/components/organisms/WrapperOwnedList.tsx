@@ -533,28 +533,35 @@ export default function WrapperOwnedList() {
   const listOwnedToken = async () => {
     const ercWrapper = contracts.Wrapper?.cabi;
     const tokensId = new Set<string>();
-    if (ercWrapper) {
-      const fromLogs = await ercWrapper.queryFilter(
-        ercWrapper.filters.Transfer(account, null),
-      );
-      const sentLogs = await ercWrapper.queryFilter(
-        ercWrapper.filters.Transfer(null, account),
-      );
-      const logs = fromLogs.concat(sentLogs).sort((a, b) =>
-          a.blockNumber - b.blockNumber ||
-          a.transactionIndex - b.transactionIndex,
-      );
-      const checkAccount = account.toLowerCase();
-      for (let i = 0; i < logs.length; i++) {
-        if (logs[i] && logs[i].args) {
-          // const { from, to, tokenId } = logs[i].args;
-          if (logs[i].args?.to.toLowerCase() === checkAccount) {
-            tokensId.add(logs[i].args?.tokenId.toString());
-          } else if (logs[i].args?.from.toLowerCase() === checkAccount) {
-            tokensId.delete(logs[i].args?.tokenId.toString());
+    try {
+      if (ercWrapper) {
+        console.log('going to check logs')
+        /*const fromLogs = await ercWrapper.queryFilter(
+          ercWrapper.filters.Transfer(account, null),
+        );
+        console.log('first to check logs')
+        const sentLogs = await ercWrapper.queryFilter(
+          ercWrapper.filters.Transfer(null, account),
+        );
+        console.log({fromLogs, sentLogs})
+        const logs = fromLogs.concat(sentLogs).sort((a, b) =>
+            a.blockNumber - b.blockNumber ||
+            a.transactionIndex - b.transactionIndex,
+        );
+        const checkAccount = account.toLowerCase();
+        for (let i = 0; i < logs.length; i++) {
+          if (logs[i] && logs[i].args) {
+            // const { from, to, tokenId } = logs[i].args;
+            if (logs[i].args?.to.toLowerCase() === checkAccount) {
+              tokensId.add(logs[i].args?.tokenId.toString());
+            } else if (logs[i].args?.from.toLowerCase() === checkAccount) {
+              tokensId.delete(logs[i].args?.tokenId.toString());
+            }
           }
-        }
+        }*/
       }
+    } catch (err) {
+      console.log(err);
     }
     return tokensId;
   }
@@ -565,41 +572,48 @@ export default function WrapperOwnedList() {
       isLoading: true,
     });
     const initTokens = async () => {
-      const tokenOwned: Set<string> = await listOwnedToken();
+      // const tokenOwned: Set<string> = await listOwnedToken();
       const symbol = 'BWRAP';
       const wrapTokens: WrapTokens[] = [];
       const ercWrapper = contracts.Wrapper?.cabi;
       if (ercWrapper) {
-        for (const tokenSID of Array.from(tokenOwned)) {
-          const wrapped = ethers.BigNumber.from(tokenSID)
-          try {
-            //const basketPrice = await ercWrapper.basketPrice(account, wrapped);
-            const { price, onSale } = await ercWrapper.bidding(account, wrapped);
-            const { tokens, amounts } = await ercWrapper.wrappedBalance(wrapped);
-            const composition: UnderlayingToken[] = [];
-            for (let i = 0; i < tokens.length; i++) {
-              const uSymbol = contractNames[provider?.network.chainId || 0][tokens[i]] || '';
-              composition.push({
-                address: tokens[i],
-                symbol: uSymbol,
-                price: ethers.BigNumber.from(0),
-                amount: amounts[i],
-                angle: parseInt(amounts[i].toString(), 10),
-                label: uSymbol,
+        const maxToken = await ercWrapper.totalSupply();
+        const one = ethers.BigNumber.from(1);
+        const myAddress = account.toLowerCase();
+        for (let i = ethers.BigNumber.from(1); i.lt(maxToken); i = i.add(one)) {
+          const wrapped = await ercWrapper.tokenByIndex(i);
+          const tokenAddress = await ercWrapper.ownerOf(wrapped);
+          if (tokenAddress.toLowerCase() !== myAddress) {
+            try {
+              //const basketPrice = await ercWrapper.basketPrice(account, wrapped);
+              const { price, onSale } = await ercWrapper.bidding(account, wrapped);
+              const { tokens, amounts } = await ercWrapper.wrappedBalance(wrapped);
+              const composition: UnderlayingToken[] = [];
+              for (let i = 0; i < tokens.length; i++) {
+                const uSymbol = contractNames[provider?.network.chainId || 0][tokens[i]] || '';
+                composition.push({
+                  address: tokens[i],
+                  symbol: uSymbol,
+                  price: ethers.BigNumber.from(0),
+                  amount: amounts[i],
+                  angle: parseInt(amounts[i].toString(), 10),
+                  label: uSymbol,
+                });
+              }
+              wrapTokens.push({
+                symbol,
+                tokenID: wrapped,
+                displayName: `${symbol} (${wrapped.toString()})`, // symbol (tokenID)
+                basketPrice: price,
+                composition: composition,
+                tokenInOrder: onSale,
               });
+            } catch (err) {
+              console.log('error in asking basket prices');
+              console.log(err);
             }
-            wrapTokens.push({
-              symbol,
-              tokenID: wrapped,
-              displayName: `${symbol} (${wrapped.toString()})`, // symbol (tokenID)
-              basketPrice: price,
-              composition: composition,
-              tokenInOrder: onSale,
-            });
-          } catch (err) {
-            console.log('error in asking basket prices');
-            console.log(err);
           }
+
         }
       }
       setAssets({
