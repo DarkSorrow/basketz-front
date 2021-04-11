@@ -583,7 +583,7 @@ export default function WrapperOwnedList() {
         for (let i = ethers.BigNumber.from(1); i.lt(maxToken); i = i.add(one)) {
           const wrapped = await ercWrapper.tokenByIndex(i);
           const tokenAddress = await ercWrapper.ownerOf(wrapped);
-          if (tokenAddress.toLowerCase() !== myAddress) {
+          if (tokenAddress.toLowerCase() === myAddress) {
             try {
               //const basketPrice = await ercWrapper.basketPrice(account, wrapped);
               const { price, onSale } = await ercWrapper.bidding(account, wrapped);
