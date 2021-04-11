@@ -116,10 +116,10 @@ const DialogCreateSwap = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
               contracts.Wrapper?.cabi.address,
               wrapToken.tokenID, { gasLimit: 600000 });
             setContractSecret(hash.secret);
-            console.log('steps to validate the contract');
-            console.log(hash.secret);
             const receipt = await tx.wait();
-            const details = receipt.events?.filter((x: any) => { return x.event === "HTLCERC721New" });
+            const details = receipt.events?.filter((x: any) => {
+              return x.event === "HTLCERC721New" 
+            });
             const contractId = details[0].args.contractId;
             console.log(contractId);
             setContractID(contractId)
