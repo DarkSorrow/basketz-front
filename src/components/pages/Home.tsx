@@ -20,6 +20,7 @@ import Tooltip from '@material-ui/core/Tooltip';
 import DashboardPage from './Dashboard';
 import BasketzArticle from '../organisms/BasketzArticle'
 import { useWallet } from '../../providers';
+import { chainsID } from '../../utils';
 
 function NoMatch() {
   return <h1>Doesnt exist</h1>
@@ -54,7 +55,7 @@ function LoggedAppBar() {
         },
       }}>
         <Tooltip title="Current network">
-          <Chip avatar={<Avatar>N</Avatar>} label={provider?.network.name} />
+          <Chip avatar={<Avatar>N</Avatar>} label={chainsID[provider?.network.chainId || 0] || provider?.network.name } />
         </Tooltip>
         <Tooltip title={copyText}>
           <Chip avatar={<Avatar>A</Avatar>} label={account} onClick={() => {

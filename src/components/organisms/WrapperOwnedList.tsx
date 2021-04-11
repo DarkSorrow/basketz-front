@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect, useRef } from 'react';
-import { makeStyles, Theme, createStyles } from '@material-ui/core/styles';
+import { makeStyles } from '@material-ui/core/styles';
 import Box from '@material-ui/core/Box';
 import Collapse from '@material-ui/core/Collapse';
 import IconButton from '@material-ui/core/IconButton';
@@ -28,10 +28,7 @@ import DateTimePicker from '@material-ui/lab/DateTimePicker';
 import Button from '@material-ui/core/Button';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
-import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
-import FingerprintIcon from '@material-ui/icons/Fingerprint';
-import TrackChangesIcon from '@material-ui/icons/TrackChanges';
 
 import { addMinutes, formatDistanceToNow } from 'date-fns'
 import { createHash } from '../../utils';
@@ -530,13 +527,13 @@ export default function WrapperOwnedList() {
     isLoading: true,
   });
 
-  const listOwnedToken = async () => {
+  /*const listOwnedToken = async () => {
     const ercWrapper = contracts.Wrapper?.cabi;
     const tokensId = new Set<string>();
     try {
       if (ercWrapper) {
         console.log('going to check logs')
-        /*const fromLogs = await ercWrapper.queryFilter(
+        const fromLogs = await ercWrapper.queryFilter(
           ercWrapper.filters.Transfer(account, null),
         );
         console.log('first to check logs')
@@ -558,13 +555,13 @@ export default function WrapperOwnedList() {
               tokensId.delete(logs[i].args?.tokenId.toString());
             }
           }
-        }*/
+        }
       }
     } catch (err) {
       console.log(err);
     }
     return tokensId;
-  }
+  }*/
 
   useEffect(() => {
     setAssets({
