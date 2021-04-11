@@ -226,7 +226,6 @@ const DialogCreateSwap = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
     </>
 }
 
-
 const DialogCancelOrder = ({ wrapToken, handleDialogClose }: IDialogsProps) => {
   const { contracts, checkTx } = useWallet();
   const [isPending, setIsPending] = useState<boolean>(false);
@@ -520,12 +519,73 @@ interface AssetsOwned {
   isLoading: boolean;
 }
 
+interface ISwapDialogsProps {
+  setOpenDialog: (openDialog: boolean) => void
+}
+const DialogOpenOldSwap = ({ setOpenDialog }: ISwapDialogsProps) => {
+  const { contracts, checkTx } = useWallet();
+  const [isPending, setIsPending] = useState<boolean>(false);
+  const [contractID, setContractID] = useState<string>('');
+  const [contractSecret, setContractSecret] = useState<string>('');
+  
+  const withdrawToken = async () => {
+    setIsPending(true);
+    try {
+      const tx = await contracts.Wrapper?.cabi.withdraw(contractID, contractSecret, { gasLimit: 600000 });
+      checkTx(tx);
+      setOpenDialog(false);
+      return ;
+    } catch (err) {
+      console.log(err);
+    }
+    setIsPending(false);
+  }
+  return (
+    <>
+      <DialogTitle id="form-dialog-title">Withdraw from contracts</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          You can put your contract ID and Secret here to get your token.
+        </DialogContentText>
+        <TextField
+          label="Contract ID"
+          value={contractID}
+          onChange={(e) => setContractID(e.target.value)}
+          variant="standard"
+          helperText="The contract ID given at the end of the swap"
+          type="text"
+          autoFocus
+          fullWidth
+        />
+        <TextField
+          label="Contract Secret"
+          value={contractSecret}
+          onChange={(e) => setContractSecret(e.target.value)}
+          variant="standard"
+          helperText="The secret use in your swap"
+          type="text"
+          autoFocus
+          fullWidth
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => { setOpenDialog(false) }}>Close</Button>
+        <LoadingButton variant="contained" color="secondary" pending={isPending} onClick={withdrawToken}>
+          Withdraw
+        </LoadingButton>
+      </DialogActions>
+    </>
+  )
+}
+
 export default function WrapperOwnedList() {
   const { provider, account, contracts } = useWallet();
+  const classes = useRowStyles();
   const [ assets, setAssets ] = useState<AssetsOwned>({
     wrap: [],
     isLoading: true,
   });
+  const [openDialog, setOpenDialog] = useState<boolean>(false);
 
   /*const listOwnedToken = async () => {
     const ercWrapper = contracts.Wrapper?.cabi;
@@ -633,6 +693,14 @@ export default function WrapperOwnedList() {
     <TableContainer component={Paper}>
       <Table aria-label="collapsible table">
         <TableHead>
+          <TableRow className={classes.root}>
+            <TableCell colSpan={6}>
+              <Button variant="outlined" onClick={() => setOpenDialog(true)}>Open swap contract forms</Button>
+              <Dialog open={openDialog} onClose={() => setOpenDialog(false)} aria-labelledby="form-dialog-title">
+                <DialogOpenOldSwap setOpenDialog={setOpenDialog} />
+              </Dialog>
+            </TableCell>
+          </TableRow>
           <TableRow>
             <TableCell />
             <TableCell>Token</TableCell>
